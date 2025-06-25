@@ -59,8 +59,7 @@ export default function RecipeCard({ recipe, onPress }) {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: 'red',
-    // Removed marginHorizontal and marginVertical - these are handled in HomeScreen
+    backgroundColor: '#ffffff', // FIXED: Changed from 'red' to proper color
     padding: 16,
     borderRadius: 12,
     elevation: 3,
@@ -68,6 +67,9 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
+    marginVertical: 6, // Added for proper spacing
+    borderWidth: 1,
+    borderColor: '#e9ecef',
   },
   header: {
     flexDirection: 'row',

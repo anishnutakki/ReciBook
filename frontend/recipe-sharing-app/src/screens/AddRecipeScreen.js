@@ -12,26 +12,104 @@ import {
 } from 'react-native';
 import { createRecipe } from '../services/recipes';
 import { auth } from '../../firebase';
+// For web compatibility, you might need to replace this with:
+// import { IoAddCircle, IoCloseCircle } from 'react-icons/io5';
+import Icon from 'react-native-vector-icons/Ionicons';
 
 export default function AddRecipeScreen({ navigation }) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [ingredients, setIngredients] = useState('');
-  const [instructions, setInstructions] = useState('');
-  const [category, setCategory] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [ingredients, setIngredients] = useState([{ quantity: '', unit: '', name: '' }]);
+  const [instructions, setInstructions] = useState(['']);
   const [isLoading, setIsLoading] = useState(false);
 
+  const categories = [
+    { id: 'Breakfast', name: 'Breakfast', icon: '🍳' },
+    { id: 'Brunch', name: 'Brunch', icon: '🥐' },
+    { id: 'Lunch', name: 'Lunch', icon: '🥗' },
+    { id: 'Dinner', name: 'Dinner', icon: '🍽️' },
+    { id: 'Snack', name: 'Snack', icon: '🍿' },
+    { id: 'Dessert', name: 'Dessert', icon: '🍰' },
+    { id: 'Appetizer', name: 'Appetizer', icon: '🥙' },
+    { id: 'Beverage', name: 'Beverage', icon: '🥤' },
+    { id: 'Soup', name: 'Soup', icon: '🍲' },
+    { id: 'Salad', name: 'Salad', icon: '🥗' },
+    { id: 'Main-Course', name: 'Main Course', icon: '🍖' },
+    { id: 'Side-Dish', name: 'Side Dish', icon: '🥔' }
+  ];
+
+  const commonUnits = [
+    'cup', 'cups', 'tbsp', 'tsp', 'oz', 'lb', 'g', 'kg', 'ml', 'l',
+    'piece', 'pieces', 'slice', 'slices', 'clove', 'cloves', 'pinch', 'dash'
+  ];
+
+  const addIngredient = () => {
+    setIngredients([...ingredients, { quantity: '', unit: '', name: '' }]);
+  };
+
+  const removeIngredient = (index) => {
+    if (ingredients.length > 1) {
+      const newIngredients = ingredients.filter((_, i) => i !== index);
+      setIngredients(newIngredients);
+    }
+  };
+
+  const updateIngredient = (index, field, value) => {
+    const newIngredients = [...ingredients];
+    newIngredients[index][field] = value;
+    setIngredients(newIngredients);
+  };
+
+  const addInstruction = () => {
+    setInstructions([...instructions, '']);
+  };
+
+  const removeInstruction = (index) => {
+    if (instructions.length > 1) {
+      const newInstructions = instructions.filter((_, i) => i !== index);
+      setInstructions(newInstructions);
+    }
+  };
+
+  const updateInstruction = (index, value) => {
+    const newInstructions = [...instructions];
+    newInstructions[index] = value;
+    setInstructions(newInstructions);
+  };
+
+  const formatIngredientsList = () => {
+    return ingredients
+      .filter(ing => ing.name.trim())
+      .map(ing => {
+        let formatted = '';
+        if (ing.quantity.trim()) formatted += ing.quantity + ' ';
+        if (ing.unit.trim()) formatted += ing.unit + ' ';
+        formatted += ing.name.trim();
+        return formatted;
+      });
+  };
+
   const handleSubmit = async () => {
-    if (!title.trim() || !ingredients.trim() || !instructions.trim()) {
-      Alert.alert('Error', 'Please fill in title, ingredients, and instructions');
+    if (!title.trim()) {
+      Alert.alert('Error', 'Please enter a recipe title');
       return;
     }
 
-    const ingredientsList = ingredients.split('\n').filter(item => item.trim());
-    const instructionsList = instructions.split('\n').filter(item => item.trim());
+    if (!selectedCategory) {
+      Alert.alert('Error', 'Please select a category');
+      return;
+    }
 
-    if (ingredientsList.length === 0 || instructionsList.length === 0) {
-      Alert.alert('Error', 'Please add at least one ingredient and instruction');
+    const formattedIngredients = formatIngredientsList();
+    if (formattedIngredients.length === 0) {
+      Alert.alert('Error', 'Please add at least one ingredient');
+      return;
+    }
+
+    const validInstructions = instructions.filter(inst => inst.trim());
+    if (validInstructions.length === 0) {
+      Alert.alert('Error', 'Please add at least one instruction step');
       return;
     }
 
@@ -40,9 +118,9 @@ export default function AddRecipeScreen({ navigation }) {
       const recipeData = {
         title: title.trim(),
         description: description.trim(),
-        ingredients: ingredientsList,
-        instructions: instructionsList,
-        category: category.trim() || 'other',
+        ingredients: formattedIngredients,
+        instructions: validInstructions,
+        category: selectedCategory,
       };
 
       await createRecipe(
@@ -52,7 +130,7 @@ export default function AddRecipeScreen({ navigation }) {
       );
 
       Alert.alert('Success', 'Recipe created successfully!', [
-        { text: 'OK', onPress: () => navigation.goBack() }
+        { text: 'OK', onPress: () => navigation.navigate('HomeScreen') }
       ]);
     } catch (error) {
       Alert.alert('Error', 'Failed to create recipe: ' + error.message);
@@ -61,67 +139,307 @@ export default function AddRecipeScreen({ navigation }) {
     }
   };
 
+  if (Platform.OS === 'web') {
+    return (
+      <div style={webStyles.container}>
+        <div style={webStyles.scrollableContainer}>
+          {/* Header */}
+          <View style={styles.header}>
+            <TouchableOpacity 
+              style={styles.backButton} 
+              onPress={() => navigation.goBack()}
+            >
+              <Text style={styles.backIcon}>←</Text>
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Add Recipe</Text>
+            <View style={styles.headerSpacer} />
+          </View>
+
+          <View style={styles.form}>
+            {/* Title */}
+            <Text style={styles.label}>Recipe Title *</Text>
+            <TextInput
+              style={styles.input}
+              value={title}
+              onChangeText={setTitle}
+              placeholder="Enter recipe title..."
+              placeholderTextColor="#999"
+            />
+
+            {/* Description */}
+            <Text style={styles.label}>Description</Text>
+            <TextInput
+              style={[styles.input, styles.textArea]}
+              value={description}
+              onChangeText={setDescription}
+              placeholder="Brief description of your recipe..."
+              placeholderTextColor="#999"
+              multiline
+              numberOfLines={3}
+            />
+
+            {/* Category Selection */}
+            <Text style={styles.label}>Category *</Text>
+            <View style={styles.categoryContainer}>
+              {categories.map((cat) => (
+                <TouchableOpacity
+                  key={cat.id}
+                  style={[
+                    styles.categoryButton,
+                    selectedCategory === cat.id && styles.categoryButtonSelected
+                  ]}
+                  onPress={() => setSelectedCategory(cat.id)}
+                >
+                  <Text style={styles.categoryEmoji}>{cat.icon}</Text>
+                  <Text style={[
+                    styles.categoryText,
+                    selectedCategory === cat.id && styles.categoryTextSelected
+                  ]}>
+                    {cat.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* Ingredients */}
+            <Text style={styles.label}>Ingredients *</Text>
+            {ingredients.map((ingredient, index) => (
+              <View key={index} style={styles.ingredientRow}>
+                <View style={styles.ingredientInputs}>
+                  <TextInput
+                    style={[styles.input, styles.quantityInput]}
+                    value={ingredient.quantity}
+                    onChangeText={(value) => updateIngredient(index, 'quantity', value)}
+                    placeholder="2"
+                    placeholderTextColor="#999"
+                    keyboardType="numeric"
+                  />
+                  <TextInput
+                    style={[styles.input, styles.unitInput]}
+                    value={ingredient.unit}
+                    onChangeText={(value) => updateIngredient(index, 'unit', value)}
+                    placeholder="cups"
+                    placeholderTextColor="#999"
+                  />
+                  <TextInput
+                    style={[styles.input, styles.nameInput]}
+                    value={ingredient.name}
+                    onChangeText={(value) => updateIngredient(index, 'name', value)}
+                    placeholder="flour"
+                    placeholderTextColor="#999"
+                  />
+                </View>
+                {ingredients.length > 1 && (
+                  <TouchableOpacity
+                    style={styles.removeButton}
+                    onPress={() => removeIngredient(index)}
+                  >
+                    <Icon name="close-circle" size={24} color="#ef4444" />
+                  </TouchableOpacity>
+                )}
+              </View>
+            ))}
+            <TouchableOpacity style={styles.addButton} onPress={addIngredient}>
+              <Icon name="add-circle" size={24} color="#6366f1" />
+              <Text style={styles.addButtonText}>Add Ingredient</Text>
+            </TouchableOpacity>
+
+            {/* Instructions */}
+            <Text style={styles.label}>Instructions *</Text>
+            {instructions.map((instruction, index) => (
+              <View key={index} style={styles.instructionRow}>
+                <View style={styles.stepNumber}>
+                  <Text style={styles.stepNumberText}>{index + 1}</Text>
+                </View>
+                <TextInput
+                  style={[styles.input, styles.instructionInput]}
+                  value={instruction}
+                  onChangeText={(value) => updateInstruction(index, value)}
+                  placeholder={`Step ${index + 1}...`}
+                  placeholderTextColor="#999"
+                  multiline
+                />
+                {instructions.length > 1 && (
+                  <TouchableOpacity
+                    style={styles.removeButton}
+                    onPress={() => removeInstruction(index)}
+                  >
+                    <Icon name="close-circle" size={24} color="#ef4444" />
+                  </TouchableOpacity>
+                )}
+              </View>
+            ))}
+            <TouchableOpacity style={styles.addButton} onPress={addInstruction}>
+              <Icon name="add-circle" size={24} color="#6366f1" />
+              <Text style={styles.addButtonText}>Add Step</Text>
+            </TouchableOpacity>
+
+            {/* Submit Button */}
+            <TouchableOpacity
+              style={[styles.submitButton, isLoading && styles.buttonDisabled]}
+              onPress={handleSubmit}
+              disabled={isLoading}
+            >
+              <Text style={styles.submitButtonText}>
+                {isLoading ? 'Creating Recipe...' : 'Create Recipe'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <KeyboardAvoidingView 
-      style={styles.container} 
+    <KeyboardAvoidingView
+      style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
     >
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity 
+          style={styles.backButton} 
+          onPress={() => navigation.goBack()}
+        >
+          <Text style={styles.backIcon}>←</Text>
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Add Recipe</Text>
+        <View style={styles.headerSpacer} />
+      </View>
+
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollViewContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={true}
+      >
         <View style={styles.form}>
+          {/* Title */}
           <Text style={styles.label}>Recipe Title *</Text>
           <TextInput
             style={styles.input}
             value={title}
             onChangeText={setTitle}
             placeholder="Enter recipe title..."
+            placeholderTextColor="#999"
           />
 
+          {/* Description */}
           <Text style={styles.label}>Description</Text>
           <TextInput
             style={[styles.input, styles.textArea]}
             value={description}
             onChangeText={setDescription}
             placeholder="Brief description of your recipe..."
+            placeholderTextColor="#999"
             multiline
             numberOfLines={3}
           />
 
-          <Text style={styles.label}>Category</Text>
-          <TextInput
-            style={styles.input}
-            value={category}
-            onChangeText={setCategory}
-            placeholder="e.g., dessert, main-course, appetizer..."
-          />
+          {/* Category Selection */}
+          <Text style={styles.label}>Category *</Text>
+          <View style={styles.categoryContainer}>
+            {categories.map((cat) => (
+              <TouchableOpacity
+                key={cat.id}
+                style={[
+                  styles.categoryButton,
+                  selectedCategory === cat.id && styles.categoryButtonSelected
+                ]}
+                onPress={() => setSelectedCategory(cat.id)}
+              >
+                <Text style={styles.categoryEmoji}>{cat.icon}</Text>
+                <Text style={[
+                  styles.categoryText,
+                  selectedCategory === cat.id && styles.categoryTextSelected
+                ]}>
+                  {cat.name}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
 
+          {/* Ingredients */}
           <Text style={styles.label}>Ingredients *</Text>
-          <Text style={styles.hint}>Enter each ingredient on a new line</Text>
-          <TextInput
-            style={[styles.input, styles.textArea]}
-            value={ingredients}
-            onChangeText={setIngredients}
-            placeholder="2 cups flour&#10;1 cup sugar&#10;3 eggs..."
-            multiline
-            numberOfLines={6}
-          />
+          {ingredients.map((ingredient, index) => (
+            <View key={index} style={styles.ingredientRow}>
+              <View style={styles.ingredientInputs}>
+                <TextInput
+                  style={[styles.input, styles.quantityInput]}
+                  value={ingredient.quantity}
+                  onChangeText={(value) => updateIngredient(index, 'quantity', value)}
+                  placeholder="2"
+                  placeholderTextColor="#999"
+                  keyboardType="numeric"
+                />
+                <TextInput
+                  style={[styles.input, styles.unitInput]}
+                  value={ingredient.unit}
+                  onChangeText={(value) => updateIngredient(index, 'unit', value)}
+                  placeholder="cups"
+                  placeholderTextColor="#999"
+                />
+                <TextInput
+                  style={[styles.input, styles.nameInput]}
+                  value={ingredient.name}
+                  onChangeText={(value) => updateIngredient(index, 'name', value)}
+                  placeholder="flour"
+                  placeholderTextColor="#999"
+                />
+              </View>
+              {ingredients.length > 1 && (
+                <TouchableOpacity
+                  style={styles.removeButton}
+                  onPress={() => removeIngredient(index)}
+                >
+                  <Icon name="close-circle" size={24} color="#ef4444" />
+                </TouchableOpacity>
+              )}
+            </View>
+          ))}
+          <TouchableOpacity style={styles.addButton} onPress={addIngredient}>
+            <Icon name="add-circle" size={24} color="#6366f1" />
+            <Text style={styles.addButtonText}>Add Ingredient</Text>
+          </TouchableOpacity>
 
+          {/* Instructions */}
           <Text style={styles.label}>Instructions *</Text>
-          <Text style={styles.hint}>Enter each step on a new line</Text>
-          <TextInput
-            style={[styles.input, styles.textArea]}
-            value={instructions}
-            onChangeText={setInstructions}
-            placeholder="Preheat oven to 350°F&#10;Mix dry ingredients&#10;Add wet ingredients..."
-            multiline
-            numberOfLines={6}
-          />
+          {instructions.map((instruction, index) => (
+            <View key={index} style={styles.instructionRow}>
+              <View style={styles.stepNumber}>
+                <Text style={styles.stepNumberText}>{index + 1}</Text>
+              </View>
+              <TextInput
+                style={[styles.input, styles.instructionInput]}
+                value={instruction}
+                onChangeText={(value) => updateInstruction(index, value)}
+                placeholder={`Step ${index + 1}...`}
+                placeholderTextColor="#999"
+                multiline
+              />
+              {instructions.length > 1 && (
+                <TouchableOpacity
+                  style={styles.removeButton}
+                  onPress={() => removeInstruction(index)}
+                >
+                  <Icon name="close-circle" size={24} color="#ef4444" />
+                </TouchableOpacity>
+              )}
+            </View>
+          ))}
+          <TouchableOpacity style={styles.addButton} onPress={addInstruction}>
+            <Icon name="add-circle" size={24} color="#6366f1" />
+            <Text style={styles.addButtonText}>Add Step</Text>
+          </TouchableOpacity>
 
+          {/* Submit Button */}
           <TouchableOpacity
-            style={[styles.button, isLoading && styles.buttonDisabled]}
+            style={[styles.submitButton, isLoading && styles.buttonDisabled]}
             onPress={handleSubmit}
             disabled={isLoading}
           >
-            <Text style={styles.buttonText}>
+            <Text style={styles.submitButtonText}>
               {isLoading ? 'Creating Recipe...' : 'Create Recipe'}
             </Text>
           </TouchableOpacity>
@@ -134,53 +452,289 @@ export default function AddRecipeScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: Platform.OS === 'web' ? 'transparent' : '#f8faf8',
+  },
+  header: {
+    backgroundColor: Platform.OS === 'web' ? 'rgba(255, 255, 255, 0.9)' : 'white',
+    backdropFilter: Platform.OS === 'web' ? 'blur(20px)' : undefined,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingTop: Platform.OS === 'web' ? 60 : 44,
+    paddingBottom: 24,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0, 0, 0, 0.05)',
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Platform.OS === 'web' ? 'rgba(255, 255, 255, 0.9)' : 'white',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.1)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  backIcon: {
+    fontSize: 20,
+    color: '#1a1a1a',
+    fontWeight: '600',
+  },
+  headerTitle: {
+    flex: 1,
+    textAlign: 'center',
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1a1a1a',
+    marginHorizontal: 16,
+  },
+  headerSpacer: {
+    width: 40,
   },
   scrollView: {
     flex: 1,
   },
+  scrollViewContent: {
+    flexGrow: 1,
+    paddingBottom: 100,
+  },
   form: {
-    padding: 16,
+    padding: 24,
+    backgroundColor: Platform.OS === 'web' ? 'rgba(255, 255, 255, 0.9)' : 'white',
+    backdropFilter: Platform.OS === 'web' ? 'blur(20px)' : undefined,
+    margin: 20,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 24,
+    elevation: 4,
   },
   label: {
     fontSize: 16,
     fontWeight: '600',
-    marginBottom: 8,
-    color: '#333',
-  },
-  hint: {
-    fontSize: 12,
-    color: '#666',
-    marginBottom: 8,
-    fontStyle: 'italic',
+    marginBottom: 12,
+    marginTop: 24,
+    color: '#1a1a1a',
   },
   input: {
-    backgroundColor: 'white',
+    backgroundColor: Platform.OS === 'web' ? 'rgba(248, 250, 252, 0.8)' : '#f8fafc',
     borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+    borderColor: 'rgba(0, 0, 0, 0.08)',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     fontSize: 16,
-    marginBottom: 16,
+    marginBottom: 12,
+    color: '#1a1a1a',
+    backdropFilter: Platform.OS === 'web' ? 'blur(10px)' : undefined,
   },
   textArea: {
     height: 100,
     textAlignVertical: 'top',
   },
-  button: {
-    backgroundColor: '#007AFF',
-    paddingVertical: 16,
-    borderRadius: 8,
-    marginTop: 8,
+  
+  // Category Styles
+  categoryContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 12,
+    gap: 8,
+  },
+  categoryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Platform.OS === 'web' ? 'rgba(248, 250, 252, 0.8)' : '#f8fafc',
+    backdropFilter: Platform.OS === 'web' ? 'blur(10px)' : undefined,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.08)',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    margin: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  categoryButtonSelected: {
+    backgroundColor: '#6366f1',
+    borderColor: '#6366f1',
+    shadowColor: '#6366f1',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  categoryEmoji: {
+    fontSize: 16,
+    marginRight: 8,
+  },
+  categoryText: {
+    fontSize: 14,
+    color: '#1a1a1a',
+    fontWeight: '500',
+  },
+  categoryTextSelected: {
+    color: 'white',
+    fontWeight: '600',
+  },
+
+  // Ingredient Styles
+  ingredientRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    gap: 8,
+  },
+  ingredientInputs: {
+    flex: 1,
+    flexDirection: 'row',
+    gap: 8,
+  },
+  quantityInput: {
+    flex: 1,
+    marginBottom: 0,
+  },
+  unitInput: {
+    flex: 1.5,
+    marginBottom: 0,
+  },
+  nameInput: {
+    flex: 3,
+    marginBottom: 0,
+  },
+
+  // Instruction Styles
+  instructionRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+    gap: 12,
+  },
+  stepNumber: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#6366f1',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 14,
+    shadowColor: '#6366f1',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  stepNumberText: {
+    color: 'white',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  instructionInput: {
+    flex: 1,
+    minHeight: 60,
+    textAlignVertical: 'top',
+    marginBottom: 0,
+  },
+
+  // Button Styles
+  addButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Platform.OS === 'web' ? 'rgba(248, 250, 252, 0.8)' : '#f8fafc',
+    backdropFilter: Platform.OS === 'web' ? 'blur(10px)' : undefined,
+    borderWidth: 1,
+    borderColor: 'rgba(99, 102, 241, 0.2)',
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    marginBottom: 20,
+    justifyContent: 'center',
+    gap: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  addButtonText: {
+    color: '#6366f1',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  removeButton: {
+    padding: 8,
+    backgroundColor: Platform.OS === 'web' ? 'rgba(239, 68, 68, 0.1)' : '#fef2f2',
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  submitButton: {
+    backgroundColor: '#6366f1',
+    paddingVertical: 18,
+    borderRadius: 12,
+    marginTop: 32,
+    marginBottom: 40,
+    shadowColor: '#6366f1',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  submitButtonText: {
+    color: 'white',
+    textAlign: 'center',
+    fontSize: 18,
+    fontWeight: '600',
   },
   buttonDisabled: {
     opacity: 0.6,
   },
-  buttonText: {
-    color: 'white',
-    textAlign: 'center',
-    fontSize: 16,
-    fontWeight: '600',
-  },
 });
+
+// Web-specific styles matching HomeScreen
+const webStyles = {
+  container: {
+    height: '100vh',
+    width: '100vw',
+    minHeight: '100vh',
+    minWidth: '100vw',
+    display: 'flex',
+    flexDirection: 'column',
+    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    margin: 0,
+    padding: 0,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  scrollableContainer: {
+    flex: 1,
+    overflowY: 'auto',
+    overflowX: 'hidden',
+    background: 'rgba(255, 255, 255, 0.95)',
+    backdropFilter: 'blur(20px)',
+    width: '100vw',
+    height: '100%',
+    minHeight: '100vh',
+    border: 'none',
+    borderRadius: '0',
+    padding: '0',
+    margin: 0,
+    boxSizing: 'border-box',
+    boxShadow: 'inset 0 4px 20px rgba(0,0,0,0.1)',
+    position: 'relative',
+    zIndex: 2,
+  },
+};

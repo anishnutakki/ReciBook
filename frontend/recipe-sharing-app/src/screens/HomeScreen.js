@@ -2,392 +2,606 @@ import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  TouchableOpacity,
   StyleSheet,
+  TouchableOpacity,
   Alert,
-  FlatList,
-  SafeAreaView,
-  ActivityIndicator,
+  Platform,
 } from 'react-native';
-import { getUserRecipes } from '../services/recipes';
 import { signOut } from 'firebase/auth';
 import { auth } from '../../firebase';
+import { getUserRecipes } from '../services/recipes';
 
-export default function HomeScreen({ navigation }) {
+const HomeScreen = ({ navigation }) => {
   const [recipes, setRecipes] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const user = auth.currentUser;
 
-  const loadRecipes = async () => {
+  // Load user's recipes
+  const loadUserRecipes = async () => {
     try {
-      console.log('🟢 Current user:', auth.currentUser?.uid);
-      
-      if (auth.currentUser) {
-        console.log('🟢 Fetching recipes for user:', auth.currentUser.uid);
-        const userRecipes = await getUserRecipes(auth.currentUser.uid);
-        console.log('🟢 Found recipes:', userRecipes.length);
+      if (user) {
+        const userRecipes = await getUserRecipes(user.uid);
         setRecipes(userRecipes);
-      } else {
-        console.log('🔴 No authenticated user');
-        setRecipes([]);
       }
     } catch (error) {
-      console.error('🔴 Load recipes error:', error);
+      console.error('Error loading recipes:', error);
       Alert.alert('Error', 'Failed to load your recipes');
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
+  // Handle refresh
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadRecipes();
+    await loadUserRecipes();
     setRefreshing(false);
   };
 
+  // Handle logout
   const handleLogout = async () => {
     try {
       console.log('🔴 Starting logout...');
       await signOut(auth);
       console.log('🔴 SignOut successful, navigating to Login...');
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'Login' }],
-      });
+      if (Platform.OS === 'web') {
+        window.location.href = '/login';
+      } else {
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'Login' }],
+        });
+      }
     } catch (error) {
       console.error("Error signing out:", error);
       Alert.alert("Error", "Failed to sign out. Please try again.");
     }
   };
 
+  // Navigate to recipe details
+  const handleRecipePress = (recipeId) => {
+    navigation.navigate('RecipeDetail', { recipeId });
+  };
+
+  // Add navigation to Account screen instead of logout
+  const goToAccount = () => {
+    navigation.navigate('Account');
+  };
+
+  // Format timestamp for display
   const formatDate = (timestamp) => {
-    if (!timestamp) return '';
+    if (!timestamp) return 'Unknown date';
     const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
     return date.toLocaleDateString();
   };
 
-  const handleRecipePress = (recipe) => {
-    console.log('Recipe pressed:', recipe.title);
-    // Navigate to recipe detail screen if you have one
-    // navigation.navigate('RecipeDetail', { recipe });
-  };
+  // Load recipes when component mounts
+  useEffect(() => {
+    loadUserRecipes();
+  }, []);
 
-  const renderRecipeItem = ({ item, index }) => (
+  // Modern Recipe Card Component
+  const RecipeCard = ({ recipe }) => (
     <TouchableOpacity 
       style={styles.recipeCard}
-      onPress={() => handleRecipePress(item)}
-      activeOpacity={0.7}
+      onPress={() => handleRecipePress(recipe.id)}
+      activeOpacity={0.95}
     >
-      {/* Recipe Header */}
-      <View style={styles.recipeHeader}>
-        <Text style={styles.recipeTitle} numberOfLines={2}>
-          {item.title}
-        </Text>
-        <View style={styles.categoryBadge}>
-          <Text style={styles.categoryText}>
-            {item.category || 'Other'}
-          </Text>
+      <View style={styles.cardHeader}>
+        <View style={styles.cardIconContainer}>
+          <Text style={styles.cardIcon}>🍳</Text>
+        </View>
+        <View style={styles.cardTitleContainer}>
+          <Text style={styles.recipeTitle}>{recipe.title}</Text>
+          {recipe.category && (
+            <Text style={styles.categoryBadge}>{recipe.category}</Text>
+          )}
         </View>
       </View>
       
-      {/* Recipe Description */}
-      {item.description && (
-        <Text style={styles.recipeDescription} numberOfLines={3}>
-          {item.description}
+      {recipe.description && (
+        <Text style={styles.recipeDescription} numberOfLines={2}>
+          {recipe.description}
         </Text>
       )}
       
-      {/* Ingredients Preview */}
-      <View style={styles.ingredientsSection}>
-        <Text style={styles.ingredientsLabel}>Ingredients:</Text>
-        <Text style={styles.ingredientsList} numberOfLines={2}>
-          {item.ingredients?.slice(0, 3).join(', ')}
-          {item.ingredients?.length > 3 ? '...' : ''}
-        </Text>
-      </View>
+      {recipe.ingredients && recipe.ingredients.length > 0 && (
+        <View style={styles.ingredientsContainer}>
+          <Text style={styles.ingredientsLabel}>Ingredients:</Text>
+          <Text style={styles.ingredientsText}>
+            {recipe.ingredients.slice(0, 3).join(' • ')}
+            {recipe.ingredients.length > 3 && ' • ...'}
+          </Text>
+        </View>
+      )}
       
-      {/* Recipe Footer */}
-      <View style={styles.recipeFooter}>
-        <Text style={styles.authorText}>
-          By {item.authorName || 'Anonymous'}
-        </Text>
+      <View style={styles.cardFooter}>
         <Text style={styles.dateText}>
-          {formatDate(item.createdAt)}
+          {formatDate(recipe.createdAt)}
         </Text>
+        <View style={styles.arrowContainer}>
+          <Text style={styles.arrowText}>→</Text>
+        </View>
       </View>
     </TouchableOpacity>
   );
 
-  const renderEmptyState = () => (
-    <View style={styles.emptyContainer}>
-      <Text style={styles.emptyTitle}>No Recipes Yet</Text>
-      <Text style={styles.emptyMessage}>
-        Start building your recipe collection by adding your first recipe!
-      </Text>
-      <TouchableOpacity
-        style={styles.addFirstRecipeButton}
-        onPress={() => navigation.navigate('AddRecipe')}
-      >
-        <Text style={styles.addFirstRecipeText}>Add Your First Recipe</Text>
-      </TouchableOpacity>
-    </View>
-  );
-
-  const renderHeader = () => (
-    <View style={styles.headerContainer}>
-      <Text style={styles.headerTitle}>My Recipes</Text>
-      <Text style={styles.headerSubtitle}>
-        {recipes.length} recipe{recipes.length !== 1 ? 's' : ''} in your collection
-      </Text>
-    </View>
-  );
-
-  // Set up navigation header
-  useEffect(() => {
-    navigation.setOptions({
-      headerTitle: 'Recipe Collection',
-      headerStyle: {
-        backgroundColor: '#fff',
-      },
-      headerTitleStyle: {
-        color: '#333',
-        fontWeight: '600',
-      },
-      headerRight: () => (
-        <View style={styles.headerButtons}>
-          <TouchableOpacity
-            style={styles.headerButton}
-            onPress={() => navigation.navigate('AddRecipe')}
-          >
-            <Text style={styles.headerButtonText}>Add</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={styles.headerButton}
-            onPress={() => navigation.navigate('Search')}
-          >
-            <Text style={styles.headerButtonText}>Search</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={[styles.headerButton, styles.logoutButton]}
-            onPress={handleLogout}
-          >
-            <Text style={styles.headerButtonText}>Logout</Text>
-          </TouchableOpacity>
-        </View>
-      ),
-    });
-  }, [navigation]);
-
-  // Load recipes on mount and when screen comes into focus
-  useEffect(() => {
-    loadRecipes();
-    
-    const unsubscribe = navigation.addListener('focus', () => {
-      loadRecipes();
-    });
-    
-    return unsubscribe;
-  }, [navigation]);
-
-  if (isLoading) {
+  if (Platform.OS === 'web') {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#007AFF" />
-          <Text style={styles.loadingText}>Loading your recipes...</Text>
-        </View>
-      </SafeAreaView>
+      <div style={webStyles.container}>
+        <div style={webStyles.scrollableContainer}>
+          {/* Header Section */}
+          <View style={styles.header}>
+            <View style={styles.headerContent}>
+              <View style={styles.headerLeft}>
+                <Text style={styles.appTitle}>Recipe</Text>
+                <Text style={styles.welcomeText}>
+                  Welcome back, {user?.displayName?.split(' ')[0] || 'Chef'}
+                </Text>
+              </View>
+              <TouchableOpacity style={styles.profileButton} onPress={goToAccount}>
+                <Text style={styles.profileInitial}>
+                  {(user?.displayName?.[0] || user?.email?.[0] || 'U').toUpperCase()}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Stats Section */}
+          <View style={styles.statsSection}>
+            <View style={styles.statCard}>
+              <Text style={styles.statNumber}>{recipes.length}</Text>
+              <Text style={styles.statLabel}>My Recipes</Text>
+            </View>
+          </View>
+
+          {/* Action Buttons */}
+          <View style={styles.actionSection}>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.primaryAction]}
+              onPress={() => navigation.navigate('AddRecipe')}
+            >
+              <Text style={styles.actionIcon}>+</Text>
+              <Text style={styles.actionText}>Add Recipe</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.secondaryAction]}
+              onPress={() => navigation.navigate('Search')}
+            >
+              <Text style={styles.actionIcon}>🔍</Text>
+              <Text style={styles.actionText}>Search</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Recipes Grid */}
+          <View style={styles.recipesSection}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Recent Recipes</Text>
+              <TouchableOpacity style={styles.refreshButton} onPress={onRefresh}>
+                <Text style={styles.refreshIcon}>↻</Text>
+              </TouchableOpacity>
+            </View>
+            
+            {loading ? (
+              <View style={styles.loadingContainer}>
+                <View style={styles.loadingSpinner}></View>
+                <Text style={styles.loadingText}>Loading your recipes...</Text>
+              </View>
+            ) : recipes.length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyIcon}>📝</Text>
+                <Text style={styles.emptyTitle}>No recipes yet</Text>
+                <Text style={styles.emptyText}>
+                  Start building your recipe collection
+                </Text>
+              </View>
+            ) : (
+              <div style={webStyles.recipesGrid}>
+                {refreshing && (
+                  <Text style={styles.refreshText}>Refreshing...</Text>
+                )}
+                {recipes.map((recipe) => (
+                  <RecipeCard key={recipe.id} recipe={recipe} />
+                ))}
+              </div>
+            )}
+          </View>
+        </div>
+      </div>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <FlatList
-        data={recipes}
-        renderItem={renderRecipeItem}
-        keyExtractor={(item) => item.id}
-        ListHeaderComponent={renderHeader}
-        ListEmptyComponent={renderEmptyState}
-        contentContainerStyle={styles.listContainer}
-        showsVerticalScrollIndicator={true}
-        refreshing={refreshing}
-        onRefresh={onRefresh}
-        ItemSeparatorComponent={() => <View style={styles.separator} />}
-        initialNumToRender={10}
-        maxToRenderPerBatch={10}
-        windowSize={10}
-        removeClippedSubviews={true}
-      />
-    </SafeAreaView>
-  );
-}
+    <div style={webStyles.container}>
+      {/* Same content as web version */}
+      <View style={styles.header}>
+        <View style={styles.headerContent}>
+          <View style={styles.headerLeft}>
+            <Text style={styles.appTitle}>Recipe</Text>
+            <Text style={styles.welcomeText}>
+              Welcome back, {user?.displayName?.split(' ')[0] || 'Chef'}
+            </Text>
+          </View>
+          <TouchableOpacity style={styles.profileButton} onPress={goToAccount}>
+            <Text style={styles.profileInitial}>
+              {(user?.displayName?.[0] || user?.email?.[0] || 'U').toUpperCase()}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
 
-const styles = StyleSheet.create({
+      {/* Stats Section */}
+      <View style={styles.statsSection}>
+        <View style={styles.statCard}>
+          <Text style={styles.statNumber}>{recipes.length}</Text>
+          <Text style={styles.statLabel}>My Recipes</Text>
+        </View>
+      </View>
+
+      <View style={styles.actionSection}>
+        <TouchableOpacity
+          style={[styles.actionButton, styles.primaryAction]}
+          onPress={() => navigation.navigate('AddRecipe')}
+        >
+          <Text style={styles.actionIcon}>+</Text>
+          <Text style={styles.actionText}>Add Recipe</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.actionButton, styles.secondaryAction]}
+          onPress={() => navigation.navigate('Search')}
+        >
+          <Text style={styles.actionIcon}>🔍</Text>
+          <Text style={styles.actionText}>Search</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.recipesSection}>
+        {/* Hide recipesSection entirely by setting display none */}
+        {/* recipesSection: {
+          flex: 1,
+          paddingHorizontal: 24,
+          paddingBottom: 32,
+        }, */}
+      </View>
+    </div>
+  );
+};
+
+// Web-specific styles
+const webStyles = {
   container: {
-    flex: 1,
-    backgroundColor: '#f8f9fa',
+    height: '100vh',
+    width: '100vw',
+    minHeight: '100vh',
+    minWidth: '100vw',
+    display: 'flex',
+    flexDirection: 'column',
+    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    margin: 0,
+    padding: 0,
+    position: 'relative',
+    overflow: 'hidden',
   },
-  loadingContainer: {
+  scrollableContainer: {
     flex: 1,
-    justifyContent: 'center',
+    overflowY: 'auto',
+    overflowX: 'hidden',
+    background: 'rgba(255, 255, 255, 0.95)',
+    backdropFilter: 'blur(20px)',
+    width: '100vw',
+    height: '100%',
+    minHeight: '100vh',
+    border: 'none',
+    borderRadius: '0',
+    padding: '24px',
+    margin: 0,
+    boxSizing: 'border-box',
+    boxShadow: 'inset 0 4px 20px rgba(0,0,0,0.1)',
+    position: 'relative',
+    zIndex: 2,
+  },
+  recipesGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+    gap: '24px',
+    padding: '0',
+  },
+};
+
+// Modern styles
+const styles = StyleSheet.create({
+  header: {
+    backgroundColor: Platform.OS === 'web' ? 'rgba(255, 255, 255, 0.9)' : 'white',
+    backdropFilter: Platform.OS === 'web' ? 'blur(20px)' : undefined,
+    paddingHorizontal: 24,
+    paddingTop: Platform.OS === 'web' ? 60 : 44,
+    paddingBottom: 24,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0, 0, 0, 0.05)',
+  },
+  headerContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#f8f9fa',
   },
-  loadingText: {
-    marginTop: 12,
+  headerLeft: {
+    flex: 1,
+  },
+  appTitle: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: '#1a1a1a',
+    marginBottom: 4,
+    letterSpacing: -0.5,
+  },
+  welcomeText: {
     fontSize: 16,
     color: '#666',
+    fontWeight: '500',
   },
-  listContainer: {
-    paddingHorizontal: 16,
-    paddingBottom: 20,
+  profileButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#6366f1',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#6366f1',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  headerContainer: {
-    paddingVertical: 20,
-    paddingBottom: 24,
+  profileInitial: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: '700',
   },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#333',
+  statsSection: {
+    flexDirection: 'row',
+    paddingHorizontal: 24,
+    paddingVertical: 32,
+    gap: 16,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: Platform.OS === 'web' ? 'rgba(255, 255, 255, 0.8)' : 'white',
+    backdropFilter: Platform.OS === 'web' ? 'blur(20px)' : undefined,
+    borderRadius: 20,
+    padding: 24,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.1,
+    shadowRadius: 24,
+    elevation: 4,
+  },
+  statNumber: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: '#1a1a1a',
     marginBottom: 4,
   },
-  headerSubtitle: {
+  statLabel: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500',
+  },
+  actionSection: {
+    flexDirection: 'row',
+    paddingHorizontal: 24,
+    gap: 16,
+    marginBottom: 32,
+  },
+  actionButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 18,
+    borderRadius: 16,
+    gap: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  primaryAction: {
+    backgroundColor: '#6366f1',
+  },
+  secondaryAction: {
+    backgroundColor: Platform.OS === 'web' ? 'rgba(255, 255, 255, 0.9)' : 'white',
+    borderWidth: 1,
+    borderColor: 'rgba(99, 102, 241, 0.2)',
+  },
+  actionIcon: {
+    fontSize: 20,
+    color: 'white',
+  },
+  actionText: {
     fontSize: 16,
+    fontWeight: '600',
+    color: 'white',
+  },
+  recipesSection: {
+    display: 'none',
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#1a1a1a',
+  },
+  refreshButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Platform.OS === 'web' ? 'rgba(255, 255, 255, 0.9)' : 'white',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.1)',
+  },
+  refreshIcon: {
+    fontSize: 18,
     color: '#666',
   },
   recipeCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    padding: 16,
-    marginVertical: 6,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
+    backgroundColor: Platform.OS === 'web' ? 'rgba(255, 255, 255, 0.9)' : 'white',
+    backdropFilter: Platform.OS === 'web' ? 'blur(20px)' : undefined,
+    borderRadius: 20,
+    padding: 24,
+    marginBottom: 20,
     borderWidth: 1,
-    borderColor: '#e9ecef',
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 24,
+    elevation: 4,
+    cursor: Platform.OS === 'web' ? 'pointer' : 'default',
+    transition: Platform.OS === 'web' ? 'all 0.2s ease' : undefined,
   },
-  recipeHeader: {
+  cardHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 12,
+    marginBottom: 16,
+    gap: 12,
+  },
+  cardIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: '#f3f4f6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cardIcon: {
+    fontSize: 24,
+  },
+  cardTitleContainer: {
+    flex: 1,
   },
   recipeTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-    flex: 1,
-    marginRight: 12,
+    fontWeight: '700',
+    color: '#1a1a1a',
+    marginBottom: 4,
+    lineHeight: 24,
   },
   categoryBadge: {
-    backgroundColor: '#e3f2fd',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 16,
-  },
-  categoryText: {
     fontSize: 12,
-    color: '#1976d2',
-    fontWeight: '500',
+    fontWeight: '600',
+    color: '#6366f1',
+    backgroundColor: 'rgba(99, 102, 241, 0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    alignSelf: 'flex-start',
     textTransform: 'capitalize',
   },
   recipeDescription: {
     fontSize: 14,
     color: '#666',
     lineHeight: 20,
-    marginBottom: 12,
+    marginBottom: 16,
   },
-  ingredientsSection: {
+  ingredientsContainer: {
     marginBottom: 16,
   },
   ingredientsLabel: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
-    color: '#333',
+    color: '#999',
     marginBottom: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
-  ingredientsList: {
+  ingredientsText: {
     fontSize: 14,
     color: '#666',
-    lineHeight: 18,
+    lineHeight: 20,
   },
-  recipeFooter: {
+  cardFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
-  },
-  authorText: {
-    fontSize: 12,
-    color: '#666',
-    fontWeight: '500',
   },
   dateText: {
     fontSize: 12,
     color: '#999',
+    fontWeight: '500',
   },
-  separator: {
-    height: 1,
-    backgroundColor: 'transparent',
+  arrowContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: '#f3f4f6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  arrowText: {
+    fontSize: 16,
+    color: '#666',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 80,
+  },
+  loadingSpinner: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 3,
+    borderColor: '#f3f4f6',
+    borderTopColor: '#6366f1',
+    marginBottom: 16,
+    animation: Platform.OS === 'web' ? 'spin 1s linear infinite' : undefined,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#666',
+    fontWeight: '500',
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 60,
-    paddingHorizontal: 32,
+    paddingVertical: 80,
+  },
+  emptyIcon: {
+    fontSize: 48,
+    marginBottom: 16,
   },
   emptyTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1a1a1a',
     marginBottom: 8,
   },
-  emptyMessage: {
+  emptyText: {
     fontSize: 16,
     color: '#666',
     textAlign: 'center',
-    lineHeight: 22,
-    marginBottom: 24,
   },
-  addFirstRecipeButton: {
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  addFirstRecipeText: {
-    color: 'white',
-    fontSize: 16,
+  refreshText: {
+    textAlign: 'center',
+    color: '#6366f1',
     fontWeight: '600',
-  },
-  headerButtons: {
-    flexDirection: 'row',
-    marginRight: 8,
-  },
-  headerButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: '#007AFF',
-    borderRadius: 6,
-    marginLeft: 8,
-  },
-  logoutButton: {
-    backgroundColor: '#FF3B30',
-  },
-  headerButtonText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: '600',
+    marginBottom: 16,
+    gridColumn: '1 / -1',
   },
 });
+
+export default HomeScreen;

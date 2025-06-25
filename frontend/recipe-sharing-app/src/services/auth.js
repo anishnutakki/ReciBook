@@ -76,6 +76,9 @@ export const logoutUser = async () => {
     console.log('Starting logout process...');
     await signOut(auth);
     console.log('User logged out successfully from Firebase');
+    if (typeof window !== 'undefined' && window.location) {
+      window.location.href = '/login';
+    }
     return true;
   } catch (error) {
     console.error('Logout error:', error);

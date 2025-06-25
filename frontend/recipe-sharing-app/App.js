@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
-import { onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { auth } from './firebase';
 
 // Import screens
@@ -11,6 +11,9 @@ import RegisterScreen from './src/screens/RegisterScreen';
 import HomeScreen from './src/screens/HomeScreen';
 import AddRecipeScreen from './src/screens/AddRecipeScreen';
 import SearchScreen from './src/screens/SearchScreen';
+import RecipeDetailScreen from './src/screens/RecipeDetailScreen';
+import PublicRecipeScreen from './src/screens/PublicRecipeScreen';
+import AccountScreen from './src/screens/AccountScreen';
 
 const Stack = createStackNavigator();
 
@@ -20,6 +23,26 @@ const LoadingScreen = () => (
     <Text>Loading...</Text>
   </View>
 );
+
+// Deep linking configuration
+const linking = {
+  prefixes: ['http://localhost:8081', 'https://localhost:8081'],
+  config: {
+    screens: {
+      // Authenticated screens
+      Home: '',
+      AddRecipe: 'add-recipe',
+      RecipeDetail: 'recipe-detail/:recipeId',
+      Search: 'search',
+      PublicRecipe: 'recipe/:recipeId', // This is the key route for your URLs
+      Account: 'account',
+      
+      // Unauthenticated screens
+      Login: 'login',
+      Register: 'register',
+    },
+  },
+};
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -37,23 +60,33 @@ export default function App() {
     return unsubscribe;
   }, []);
 
+  // Function to handle logout and clean navigation
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      // The auth state listener will handle the UI update
+      console.log('🔵 User logged out successfully');
+      if (typeof window !== 'undefined' && window.location) {
+        window.location.href = '/login';
+      }
+    } catch (error) {
+      console.error('🔴 Logout error:', error);
+    }
+  };
+
   if (isLoading) {
     return <LoadingScreen />;
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer linking={linking} fallback={<LoadingScreen />}>
       <Stack.Navigator
-        initialRouteName={user ? "Home" : "Login"}
         screenOptions={{
           headerShown: true,
           gestureEnabled: true,
-          animationEnabled: true,
-          animation: "none",
-
+          animationEnabled: false,
           headerTitleAllowFontScaling: false,
           headerBackAllowFontScaling: false,
-          
         }}
       >
         {user ? (
@@ -61,10 +94,21 @@ export default function App() {
           <>
             <Stack.Screen 
               name="Home" 
-              component={HomeScreen} 
-              options={{ 
-                title: 'Recipe Sharing',
-                headerBackTitleVisible: false,
+              component={HomeScreen}
+              options={{
+                title: 'My Recipes',
+                headerRight: () => (
+                  <Text 
+                    style={{ 
+                      marginRight: 15, 
+                      color: '#2196F3', 
+                      fontWeight: '600' 
+                    }}
+                    onPress={handleLogout}
+                  >
+                    Logout
+                  </Text>
+                ),
               }}
             />
             <Stack.Screen 
@@ -76,10 +120,35 @@ export default function App() {
               }}
             />
             <Stack.Screen 
+              name="RecipeDetail" 
+              component={RecipeDetailScreen} 
+              options={{ 
+                title: 'Recipe Details',
+                headerBackTitleVisible: false,
+              }}
+            />
+            <Stack.Screen 
               name="Search" 
               component={SearchScreen} 
               options={{ 
                 title: 'Search Recipes',
+                headerBackTitleVisible: false,
+              }}
+            />
+            <Stack.Screen 
+              name="Account" 
+              component={AccountScreen}
+              options={{ 
+                title: 'Account',
+                headerBackTitleVisible: false,
+              }}
+            />
+            {/* Public Recipe Screen - Available when authenticated */}
+            <Stack.Screen 
+              name="PublicRecipe" 
+              component={PublicRecipeScreen}
+              options={{ 
+                title: 'Shared Recipe',
                 headerBackTitleVisible: false,
               }}
             />
@@ -100,6 +169,14 @@ export default function App() {
               options={{ 
                 title: 'Register',
                 headerBackTitleVisible: false,
+              }}
+            />
+            {/* Public Recipe Screen - Available when not authenticated */}
+            <Stack.Screen 
+              name="PublicRecipe" 
+              component={PublicRecipeScreen}
+              options={{ 
+                headerShown: false, // No header for public viewing
               }}
             />
           </>

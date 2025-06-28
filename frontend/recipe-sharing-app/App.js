@@ -27,7 +27,7 @@ const LoadingScreen = () => (
 
 // Deep linking configuration
 const linking = {
-  prefixes: ['http://localhost:8081', 'https://localhost:8081'],
+  prefixes: ['https://recibook.vercel.app', 'http://localhost:8081', 'https://localhost:8081'],
   config: {
     screens: {
       // Authenticated screens

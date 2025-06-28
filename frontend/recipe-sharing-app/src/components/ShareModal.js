@@ -19,7 +19,7 @@ const ShareModal = ({ visible, onClose, recipe, recipeId }) => {
       return `${baseUrl}/recipe/${recipeId}`;
     } else {
       // Fallback for mobile or when window is not available
-      return `https://yourapp.com/recipe/${recipeId}`;
+      return `https://recibook.vercel.app/recipe/${recipeId}`;
     }
   };
 

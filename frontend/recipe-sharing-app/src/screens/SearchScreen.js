@@ -9,10 +9,13 @@ import {
   Platform
 } from 'react-native';
 import { searchRecipes } from '../services/recipes';
+import { searchUsers } from '../services/users';
 
 export default function WebCompatibleSearchScreen({ navigation }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [results, setResults] = useState([]);
+  const [userResults, setUserResults] = useState([]);
+  const [searchMode, setSearchMode] = useState('all');
   const [isLoading, setIsLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
 
@@ -25,8 +28,22 @@ export default function WebCompatibleSearchScreen({ navigation }) {
     setIsLoading(true);
     setHasSearched(true);
     try {
-      const searchResults = await searchRecipes(searchTerm.trim());
-      setResults(searchResults);
+      if (searchMode === 'recipes') {
+        const recipeResults = await searchRecipes(searchTerm.trim());
+        setResults(recipeResults);
+        setUserResults([]);
+      } else if (searchMode === 'people') {
+        const users = await searchUsers(searchTerm.trim());
+        setUserResults(users);
+        setResults([]);
+      } else {
+        const [recipeResults, users] = await Promise.all([
+          searchRecipes(searchTerm.trim()),
+          searchUsers(searchTerm.trim()),
+        ]);
+        setResults(recipeResults);
+        setUserResults(users);
+      }
     } catch (error) {
       Alert.alert('Error', 'Failed to search recipes');
       console.error('Search error:', error);
@@ -38,12 +55,18 @@ export default function WebCompatibleSearchScreen({ navigation }) {
   const clearSearch = () => {
     setSearchTerm('');
     setResults([]);
+    setUserResults([]);
     setHasSearched(false);
   };
 
   // Navigate to recipe details
   const handleRecipePress = (recipeId) => {
     navigation.navigate('RecipeDetail', { recipeId });
+  };
+
+  // Navigate to user profile
+  const handleUserPress = (uid) => {
+    navigation.navigate('UserProfile', { userId: uid });
   };
 
   // Format timestamp for display
@@ -99,6 +122,17 @@ export default function WebCompatibleSearchScreen({ navigation }) {
     </TouchableOpacity>
   );
 
+  // Enhanced UserCard component matching home screen style
+  const UserCard = ({ user }) => (
+    <TouchableOpacity
+      style={styles.userCard}
+      activeOpacity={0.85}
+      onPress={() => handleUserPress(user.uid)}
+    >
+      <Text style={styles.userName}>{user.displayName || user.email}</Text>
+    </TouchableOpacity>
+  );
+
   if (Platform.OS === 'web') {
     return (
       <div style={webStyles.container}>
@@ -107,9 +141,9 @@ export default function WebCompatibleSearchScreen({ navigation }) {
           <View style={styles.header}>
             <View style={styles.headerContent}>
               <View style={styles.headerLeft}>
-                <Text style={styles.appTitle}>Recipe Search</Text>
+                <Text style={styles.appTitle}>Search</Text>
                 <Text style={styles.welcomeText}>
-                  Find your perfect recipe
+                  Find recipes or people
                 </Text>
               </View>
               <TouchableOpacity 
@@ -128,10 +162,27 @@ export default function WebCompatibleSearchScreen({ navigation }) {
                 style={styles.searchInput}
                 value={searchTerm}
                 onChangeText={setSearchTerm}
-                placeholder="Search recipes by title or ingredient..."
+                placeholder="Search recipes or people..."
                 onSubmitEditing={handleSearch}
                 returnKeyType="search"
               />
+              {/* Mode Toggle */}
+              <View style={styles.modeToggle}>
+                {['all','recipes','people'].map((m)=>(
+                  <TouchableOpacity
+                    key={m}
+                    style={[styles.modeButton, searchMode===m && styles.modeButtonActive]}
+                    onPress={() => {
+                      setSearchMode(m);
+                      if (hasSearched) {
+                        setTimeout(() => handleSearch(), 0);
+                      }
+                    }}
+                  >
+                    <Text style={[styles.modeButtonText, searchMode===m && styles.modeButtonTextActive]}>{m.charAt(0).toUpperCase()+m.slice(1)}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
               <View style={styles.buttonRow}>
                 <TouchableOpacity
                   style={[styles.actionButton, styles.primaryAction, isLoading && styles.buttonDisabled]}
@@ -167,27 +218,35 @@ export default function WebCompatibleSearchScreen({ navigation }) {
               </View>
             )}
             
-            {hasSearched && (
+            {isLoading ? (
+              <View style={styles.loadingContainer}>
+                <View style={styles.loadingSpinner}></View>
+                <Text style={styles.loadingText}>Searching...</Text>
+              </View>
+            ) : (
               <>
-                {isLoading ? (
-                  <View style={styles.loadingContainer}>
-                    <View style={styles.loadingSpinner}></View>
-                    <Text style={styles.loadingText}>Searching recipes...</Text>
-                  </View>
-                ) : results.length === 0 ? (
+                {(searchMode!=='recipes') && userResults.length > 0 && (
+                  <>
+                    <Text style={styles.subHeading}>{userResults.length} user{userResults.length!==1?'s':''} found</Text>
+                    <div style={webStyles.usersGrid}>
+                      {userResults.map((u)=>(<UserCard key={u.uid} user={u}/>))}
+                    </div>
+                  </>
+                )}
+                {(searchMode!=='people') && results.length > 0 && (
+                  <>
+                    <Text style={styles.subHeading}>{results.length} recipe{results.length!==1?'s':''} found</Text>
+                    <div style={webStyles.recipesGrid}>
+                      {results.map((recipe)=>(<RecipeCard key={recipe.id} recipe={recipe}/>))}
+                    </div>
+                  </>
+                )}
+                {userResults.length === 0 && results.length === 0 && (
                   <View style={styles.emptyContainer}>
                     <Text style={styles.emptyIcon}>🔍</Text>
-                    <Text style={styles.emptyTitle}>No recipes found</Text>
-                    <Text style={styles.emptyText}>
-                      Try a different search term or ingredient
-                    </Text>
+                    <Text style={styles.emptyTitle}>No results</Text>
+                    <Text style={styles.emptyText}>Try a different search term</Text>
                   </View>
-                ) : (
-                  <div style={webStyles.recipesGrid}>
-                    {results.map((recipe) => (
-                      <RecipeCard key={recipe.id} recipe={recipe} />
-                    ))}
-                  </div>
                 )}
               </>
             )}
@@ -195,9 +254,9 @@ export default function WebCompatibleSearchScreen({ navigation }) {
             {!hasSearched && (
               <View style={styles.welcomeContainer}>
                 <Text style={styles.welcomeIcon}>🔍</Text>
-                <Text style={styles.welcomeTitle}>Recipe Search</Text>
+                <Text style={styles.welcomeTitle}>Search</Text>
                 <Text style={styles.welcomeDescription}>
-                  Enter a recipe name or ingredient above to start searching our recipe database.
+                  Enter a recipe name, ingredient, or username above to start searching our database.
                 </Text>
                 <View style={styles.tipsContainer}>
                   <Text style={styles.tipsTitle}>Search Tips:</Text>
@@ -220,9 +279,9 @@ export default function WebCompatibleSearchScreen({ navigation }) {
         <View style={styles.header}>
           <View style={styles.headerContent}>
             <View style={styles.headerLeft}>
-              <Text style={styles.appTitle}>Recipe Search</Text>
+              <Text style={styles.appTitle}>Search</Text>
               <Text style={styles.welcomeText}>
-                Find your perfect recipe
+                Find recipes or people
               </Text>
             </View>
             <TouchableOpacity 
@@ -241,10 +300,27 @@ export default function WebCompatibleSearchScreen({ navigation }) {
               style={styles.searchInput}
               value={searchTerm}
               onChangeText={setSearchTerm}
-              placeholder="Search recipes by title or ingredient..."
+              placeholder="Search recipes or people..."
               onSubmitEditing={handleSearch}
               returnKeyType="search"
             />
+            {/* Mode Toggle */}
+            <View style={styles.modeToggle}>
+              {['all','recipes','people'].map((m)=>(
+                <TouchableOpacity
+                  key={m}
+                  style={[styles.modeButton, searchMode===m && styles.modeButtonActive]}
+                  onPress={() => {
+                    setSearchMode(m);
+                    if (hasSearched) {
+                      setTimeout(() => handleSearch(), 0);
+                    }
+                  }}
+                >
+                  <Text style={[styles.modeButtonText, searchMode===m && styles.modeButtonTextActive]}>{m.charAt(0).toUpperCase()+m.slice(1)}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
             <View style={styles.buttonRow}>
               <TouchableOpacity
                 style={[styles.actionButton, styles.primaryAction, isLoading && styles.buttonDisabled]}
@@ -280,27 +356,35 @@ export default function WebCompatibleSearchScreen({ navigation }) {
             </View>
           )}
           
-          {hasSearched && (
+          {isLoading ? (
+            <View style={styles.loadingContainer}>
+              <View style={styles.loadingSpinner}></View>
+              <Text style={styles.loadingText}>Searching...</Text>
+            </View>
+          ) : (
             <>
-              {isLoading ? (
-                <View style={styles.loadingContainer}>
-                  <View style={styles.loadingSpinner}></View>
-                  <Text style={styles.loadingText}>Searching recipes...</Text>
-                </View>
-              ) : results.length === 0 ? (
+              {(searchMode!=='recipes') && userResults.length > 0 && (
+                <>
+                  <Text style={styles.subHeading}>{userResults.length} user{userResults.length!==1?'s':''} found</Text>
+                  <div style={webStyles.usersGrid}>
+                    {userResults.map((u)=>(<UserCard key={u.uid} user={u}/>))}
+                  </div>
+                </>
+              )}
+              {(searchMode!=='people') && results.length > 0 && (
+                <>
+                  <Text style={styles.subHeading}>{results.length} recipe{results.length!==1?'s':''} found</Text>
+                  <div style={webStyles.recipesGrid}>
+                    {results.map((recipe)=>(<RecipeCard key={recipe.id} recipe={recipe}/>))}
+                  </div>
+                </>
+              )}
+              {userResults.length === 0 && results.length === 0 && (
                 <View style={styles.emptyContainer}>
                   <Text style={styles.emptyIcon}>🔍</Text>
-                  <Text style={styles.emptyTitle}>No recipes found</Text>
-                  <Text style={styles.emptyText}>
-                    Try a different search term or ingredient
-                  </Text>
+                  <Text style={styles.emptyTitle}>No results</Text>
+                  <Text style={styles.emptyText}>Try a different search term</Text>
                 </View>
-              ) : (
-                <div style={webStyles.recipesGrid}>
-                  {results.map((recipe) => (
-                    <RecipeCard key={recipe.id} recipe={recipe} />
-                  ))}
-                </div>
               )}
             </>
           )}
@@ -308,9 +392,9 @@ export default function WebCompatibleSearchScreen({ navigation }) {
           {!hasSearched && (
             <View style={styles.welcomeContainer}>
               <Text style={styles.welcomeIcon}>🔍</Text>
-              <Text style={styles.welcomeTitle}>Recipe Search</Text>
+              <Text style={styles.welcomeTitle}>Search</Text>
               <Text style={styles.welcomeDescription}>
-                Enter a recipe name or ingredient above to start searching our recipe database.
+                Enter a recipe name, ingredient, or username above to start searching our database.
               </Text>
               <View style={styles.tipsContainer}>
                 <Text style={styles.tipsTitle}>Search Tips:</Text>
@@ -364,6 +448,12 @@ const webStyles = {
     gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
     gap: '24px',
     padding: '0',
+  },
+  usersGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
+    gap: '16px',
+    marginBottom: '24px',
   },
 };
 
@@ -518,7 +608,7 @@ const styles = StyleSheet.create({
     borderColor: '#f3f4f6',
     borderTopColor: '#6366f1',
     marginBottom: 16,
-    animation: Platform.OS === 'web' ? 'spin 1s linear infinite' : undefined,
+    ...(Platform.OS === 'web' ? { animation: 'spin 1s linear infinite' } : {}),
   },
   loadingText: {
     fontSize: 16,
@@ -695,5 +785,46 @@ const styles = StyleSheet.create({
   arrowText: {
     fontSize: 16,
     color: '#666',
+  },
+  userCard: {
+    backgroundColor: Platform.OS==='web'?'rgba(255,255,255,0.9)':'#fff',
+    borderRadius:12,
+    padding:16,
+    borderWidth:1,
+    borderColor:'#e5e7eb',
+    marginBottom:12,
+    cursor:Platform.OS==='web'?'pointer':undefined,
+  },
+  userName:{
+    fontSize:16,
+    fontWeight:'600',
+    color:'#1a1a1a',
+  },
+  subHeading:{
+    fontSize:18,
+    fontWeight:'700',
+    marginVertical:12,
+  },
+  modeToggle: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 20,
+  },
+  modeButton: {
+    padding: 8,
+    borderWidth: 1,
+    borderColor: '#6366f1',
+    borderRadius: 6,
+  },
+  modeButtonActive: {
+    backgroundColor: '#6366f1',
+  },
+  modeButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6366f1',
+  },
+  modeButtonTextActive: {
+    color: 'white',
   },
 });

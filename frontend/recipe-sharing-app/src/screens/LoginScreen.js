@@ -75,7 +75,7 @@ const styles = StyleSheet.create({
     textShadow: Platform.OS === 'web' ? '0 2px 4px rgba(0,0,0,0.05)' : undefined,
   },
   formContainer: {
-    background: Platform.OS === 'web' ? 'rgba(255, 255, 255, 0.95)' : 'white',
+    ...(Platform.OS === 'web' ? { background: 'rgba(255, 255, 255, 0.95)' } : { backgroundColor: 'white' }),
     borderRadius: 24,
     padding: 32,
     width: '100%',
@@ -109,7 +109,7 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === 'web' ? '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' : undefined,
   },
   input: {
-    background: Platform.OS === 'web' ? 'rgba(248, 250, 248, 0.8)' : '#f8faf8',
+    ...(Platform.OS === 'web' ? { background: 'rgba(248, 250, 248, 0.8)' } : { backgroundColor: '#f8faf8' }),
     borderWidth: 2,
     borderColor: Platform.OS === 'web' ? 'rgba(99, 102, 241, 0.2)' : '#E8F5E8',
     borderRadius: 16,
@@ -124,7 +124,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   loginButton: {
-    background: Platform.OS === 'web' ? 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)' : '#6366f1',
+    ...(Platform.OS === 'web' ? { background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)' } : { backgroundColor: '#6366f1' }),
     paddingVertical: 18,
     borderRadius: 16,
     alignItems: 'center',
@@ -178,7 +178,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   errorContainer: {
-    background: Platform.OS === 'web' ? 'linear-gradient(135deg, #FFCDD2 0%, #EF9A9A 100%)' : '#FFCDD2',
+    ...(Platform.OS === 'web' ? { background: 'linear-gradient(135deg, #FFCDD2 0%, #EF9A9A 100%)' } : { backgroundColor: '#FFCDD2' }),
     padding: 16,
     borderRadius: 16,
     marginBottom: 24,
@@ -196,6 +196,16 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
     fontFamily: Platform.OS === 'web' ? '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' : undefined,
+  },
+  loadingSpinner: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 3,
+    borderColor: '#f3f4f6',
+    borderTopColor: '#6366f1',
+    marginBottom: 16,
+    ...(Platform.OS === 'web' ? { animation: 'spin 1s linear infinite' } : {}),
   },
 });
 

@@ -5,6 +5,7 @@ import {
   updateProfile
 } from 'firebase/auth';
 import { auth } from '../../firebase';
+import { ensureUserDoc } from './users';
 
 // Register a new user
 export const registerUser = async (email, password, displayName) => {
@@ -19,6 +20,7 @@ export const registerUser = async (email, password, displayName) => {
     });
     
     console.log('User registered successfully');
+    await ensureUserDoc(user);
     return user;
   } catch (error) {
     console.error('Registration error:', error);
@@ -46,6 +48,7 @@ export const loginUser = async (email, password) => {
     const user = userCredential.user;
     
     console.log('User logged in successfully');
+    await ensureUserDoc(user);
     return user;
   } catch (error) {
     console.error('Login error:', error);

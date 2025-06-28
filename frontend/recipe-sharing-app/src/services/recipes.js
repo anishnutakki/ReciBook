@@ -8,6 +8,7 @@ import {
   serverTimestamp
 } from 'firebase/firestore';
 import { db } from '../../firebase';
+import { getFollowingIds } from './social';
 
 // Create a new recipe
 export const createRecipe = async (recipeData, userId, authorName) => {
@@ -134,5 +135,44 @@ export const getRecipesByCategory = async (category) => {
   } catch (error) {
     console.error('Error getting recipes by category: ', error);
     throw new Error('Failed to load recipes by category');
+  }
+};
+
+// Get feed recipes for current user (recipes by followed users)
+export const getFeedRecipes = async (currentUserId) => {
+  try {
+    const followingIds = await getFollowingIds(currentUserId);
+    if (followingIds.length === 0) return [];
+
+    // Firestore 'in' query supports up to 10 elements; split if necessary
+    const chunks = [];
+    for (let i = 0; i < followingIds.length; i += 10) {
+      chunks.push(followingIds.slice(i, i + 10));
+    }
+
+    const results = [];
+    for (const chunk of chunks) {
+      const q = query(
+        collection(db, 'recipes'),
+        where('userId', 'in', chunk),
+        orderBy('createdAt', 'desc')
+      );
+      const snap = await getDocs(q);
+      snap.forEach((docSnap) => {
+        results.push({ id: docSnap.id, ...docSnap.data() });
+      });
+    }
+
+    // Sort combined results by createdAt desc (since we combined chunks)
+    results.sort((a, b) => {
+      const aDate = a.createdAt?.seconds || 0;
+      const bDate = b.createdAt?.seconds || 0;
+      return bDate - aDate;
+    });
+
+    return results;
+  } catch (error) {
+    console.error('Error loading feed recipes:', error);
+    throw new Error('Failed to load feed');
   }
 };

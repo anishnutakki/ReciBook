@@ -8,13 +8,15 @@ import {
   ScrollView,
   Alert,
   KeyboardAvoidingView,
-  Platform
+  Platform,
+  Image
 } from 'react-native';
 import { createRecipe } from '../services/recipes';
 import { auth } from '../../firebase';
 // For web compatibility, you might need to replace this with:
 // import { IoAddCircle, IoCloseCircle } from 'react-icons/io5';
 import Icon from 'react-native-vector-icons/Ionicons';
+import { uploadRecipeImage } from '../services/storage';
 
 export default function AddRecipeScreen({ navigation }) {
   const [title, setTitle] = useState('');
@@ -23,6 +25,8 @@ export default function AddRecipeScreen({ navigation }) {
   const [ingredients, setIngredients] = useState([{ quantity: '', unit: '', name: '' }]);
   const [instructions, setInstructions] = useState(['']);
   const [isLoading, setIsLoading] = useState(false);
+  const [imageUri, setImageUri] = useState(null);
+  const [imageFile, setImageFile] = useState(null);
 
   const categories = [
     { id: 'Breakfast', name: 'Breakfast', icon: '🍳' },
@@ -115,13 +119,33 @@ export default function AddRecipeScreen({ navigation }) {
 
     setIsLoading(true);
     try {
+      let downloadURL = null;
+      
+      // Fixed image upload logic
+      const uploadSource = Platform.OS === 'web' ? imageFile : imageUri;
+      if (uploadSource) {
+        console.log('Uploading image:', { 
+          platform: Platform.OS, 
+          hasFile: !!imageFile, 
+          hasUri: !!imageUri,
+          uploadSource: typeof uploadSource
+        });
+        
+        const { uploadRecipeImage } = await import('../services/storage');
+        downloadURL = await uploadRecipeImage(uploadSource);
+        console.log('Image uploaded successfully:', downloadURL);
+      }
+
       const recipeData = {
         title: title.trim(),
         description: description.trim(),
         ingredients: formattedIngredients,
         instructions: validInstructions,
         category: selectedCategory,
+        imageUrl: downloadURL,
       };
+
+      console.log('Creating recipe with data:', recipeData);
 
       await createRecipe(
         recipeData,
@@ -130,12 +154,54 @@ export default function AddRecipeScreen({ navigation }) {
       );
 
       Alert.alert('Success', 'Recipe created successfully!', [
-        { text: 'OK', onPress: () => navigation.navigate('HomeScreen') }
+        { text: 'OK', onPress: () => navigation.navigate('Home') }
       ]);
     } catch (error) {
+      console.error('Recipe creation error:', error);
       Alert.alert('Error', 'Failed to create recipe: ' + error.message);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Fixed image handling for web
+  const handleImageSelect = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      console.log('Image selected:', file.name, file.type, file.size);
+      setImageFile(file);
+      setImageUri(URL.createObjectURL(file));
+    }
+  };
+
+  // Fixed image handling for native
+  const handleNativeImageSelect = async () => {
+    try {
+      const picker = await import('expo-image-picker');
+      
+      // Request permissions
+      const permissionResult = await picker.requestMediaLibraryPermissionsAsync();
+      if (permissionResult.granted === false) {
+        Alert.alert('Permission Required', 'Permission to access camera roll is required!');
+        return;
+      }
+
+      const result = await picker.launchImageLibraryAsync({
+        mediaTypes: picker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.7,
+      });
+
+      if (!result.canceled && result.assets && result.assets[0]) {
+        console.log('Native image selected:', result.assets[0]);
+        setImageUri(result.assets[0].uri);
+        // For native, we don't need to set imageFile
+        setImageFile(null);
+      }
+    } catch (error) {
+      console.error('Image picker error:', error);
+      Alert.alert('Error', 'Failed to select image');
     }
   };
 
@@ -176,6 +242,46 @@ export default function AddRecipeScreen({ navigation }) {
               placeholderTextColor="#999"
               multiline
               numberOfLines={3}
+            />
+
+            {/* Image Picker */}
+            <Text style={styles.label}>Image</Text>
+            {imageUri && (
+              <Image 
+                source={{ uri: imageUri }} 
+                style={{ 
+                  width: '100%', 
+                  height: 200, 
+                  borderRadius: 12, 
+                  marginBottom: 12 
+                }} 
+                resizeMode="cover" 
+              />
+            )}
+            {imageUri && (
+              <TouchableOpacity
+                style={styles.removeImageButton}
+                onPress={() => {
+                  if (imageUri && imageUri.startsWith('blob:')) {
+                    URL.revokeObjectURL(imageUri);
+                  }
+                  setImageUri(null);
+                  setImageFile(null);
+                }}
+              >
+                <Text style={styles.removeImageText}>Remove Image</Text>
+              </TouchableOpacity>
+            )}
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleImageSelect}
+              style={{ 
+                marginBottom: 24,
+                padding: 8,
+                borderRadius: 8,
+                border: '1px solid #ddd'
+              }}
             />
 
             {/* Category Selection */}
@@ -336,6 +442,38 @@ export default function AddRecipeScreen({ navigation }) {
             multiline
             numberOfLines={3}
           />
+
+          {/* Image Picker */}
+          <Text style={styles.label}>Image</Text>
+          {imageUri && (
+            <Image 
+              source={{ uri: imageUri }} 
+              style={{ 
+                width: '100%', 
+                height: 200, 
+                borderRadius: 12, 
+                marginBottom: 12 
+              }} 
+              resizeMode="cover" 
+            />
+          )}
+          {imageUri && (
+            <TouchableOpacity
+              style={styles.removeImageButton}
+              onPress={() => {
+                setImageUri(null);
+                setImageFile(null);
+              }}
+            >
+              <Text style={styles.removeImageText}>Remove Image</Text>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity
+            style={styles.imageButton}
+            onPress={handleNativeImageSelect}
+          >
+            <Text style={{ color: '#6366f1', fontWeight: '600' }}>Select Image</Text>
+          </TouchableOpacity>
 
           {/* Category Selection */}
           <Text style={styles.label}>Category *</Text>
@@ -701,6 +839,24 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: {
     opacity: 0.6,
+  },
+  imageButton: {
+    backgroundColor: '#f8fafc',
+    padding: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  removeImageButton: {
+    backgroundColor: '#ff3b30',
+    paddingVertical: 8,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  removeImageText: {
+    color: '#fff',
+    fontWeight: '600',
   },
 });
 

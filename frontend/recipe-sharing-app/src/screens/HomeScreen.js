@@ -6,10 +6,11 @@ import {
   TouchableOpacity,
   Alert,
   Platform,
+  Image,
 } from 'react-native';
 import { signOut } from 'firebase/auth';
 import { auth } from '../../firebase';
-import { getUserRecipes } from '../services/recipes';
+import { getFeedRecipes } from '../services/recipes';
 
 const HomeScreen = ({ navigation }) => {
   const [recipes, setRecipes] = useState([]);
@@ -18,15 +19,15 @@ const HomeScreen = ({ navigation }) => {
   const user = auth.currentUser;
 
   // Load user's recipes
-  const loadUserRecipes = async () => {
+  const loadFeed = async () => {
     try {
       if (user) {
-        const userRecipes = await getUserRecipes(user.uid);
-        setRecipes(userRecipes);
+        const feedRecipes = await getFeedRecipes(user.uid);
+        setRecipes(feedRecipes);
       }
     } catch (error) {
-      console.error('Error loading recipes:', error);
-      Alert.alert('Error', 'Failed to load your recipes');
+      console.error('Error loading feed:', error);
+      Alert.alert('Error', 'Failed to load your feed');
     } finally {
       setLoading(false);
     }
@@ -35,7 +36,7 @@ const HomeScreen = ({ navigation }) => {
   // Handle refresh
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadUserRecipes();
+    await loadFeed();
     setRefreshing(false);
   };
 
@@ -78,7 +79,7 @@ const HomeScreen = ({ navigation }) => {
 
   // Load recipes when component mounts
   useEffect(() => {
-    loadUserRecipes();
+    loadFeed();
   }, []);
 
   // Modern Recipe Card Component
@@ -88,6 +89,9 @@ const HomeScreen = ({ navigation }) => {
       onPress={() => handleRecipePress(recipe.id)}
       activeOpacity={0.95}
     >
+      {recipe.imageUrl && (
+        <Image source={{ uri: recipe.imageUrl }} style={styles.cardImage} resizeMode="cover" />
+      )}
       <View style={styles.cardHeader}>
         <View style={styles.cardIconContainer}>
           <Text style={styles.cardIcon}>🍳</Text>
@@ -148,14 +152,6 @@ const HomeScreen = ({ navigation }) => {
             </View>
           </View>
 
-          {/* Stats Section */}
-          <View style={styles.statsSection}>
-            <View style={styles.statCard}>
-              <Text style={styles.statNumber}>{recipes.length}</Text>
-              <Text style={styles.statLabel}>My Recipes</Text>
-            </View>
-          </View>
-
           {/* Action Buttons */}
           <View style={styles.actionSection}>
             <TouchableOpacity
@@ -177,7 +173,7 @@ const HomeScreen = ({ navigation }) => {
           {/* Recipes Grid */}
           <View style={styles.recipesSection}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Recent Recipes</Text>
+              <Text style={styles.sectionTitle}>Feed</Text>
               <TouchableOpacity style={styles.refreshButton} onPress={onRefresh}>
                 <Text style={styles.refreshIcon}>↻</Text>
               </TouchableOpacity>
@@ -186,18 +182,18 @@ const HomeScreen = ({ navigation }) => {
             {loading ? (
               <View style={styles.loadingContainer}>
                 <View style={styles.loadingSpinner}></View>
-                <Text style={styles.loadingText}>Loading your recipes...</Text>
+                <Text style={styles.loadingText}>Loading feed...</Text>
               </View>
             ) : recipes.length === 0 ? (
               <View style={styles.emptyContainer}>
                 <Text style={styles.emptyIcon}>📝</Text>
-                <Text style={styles.emptyTitle}>No recipes yet</Text>
+                <Text style={styles.emptyTitle}>No posts yet</Text>
                 <Text style={styles.emptyText}>
-                  Start building your recipe collection
+                  Follow people to see their recipes here
                 </Text>
               </View>
             ) : (
-              <div style={webStyles.recipesGrid}>
+              <div style={webStyles.feedList}>
                 {refreshing && (
                   <Text style={styles.refreshText}>Refreshing...</Text>
                 )}
@@ -228,14 +224,6 @@ const HomeScreen = ({ navigation }) => {
               {(user?.displayName?.[0] || user?.email?.[0] || 'U').toUpperCase()}
             </Text>
           </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* Stats Section */}
-      <View style={styles.statsSection}>
-        <View style={styles.statCard}>
-          <Text style={styles.statNumber}>{recipes.length}</Text>
-          <Text style={styles.statLabel}>My Recipes</Text>
         </View>
       </View>
 
@@ -307,6 +295,12 @@ const webStyles = {
     gap: '24px',
     padding: '0',
   },
+  feedList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '24px',
+    padding: '0',
+  },
 };
 
 // Modern styles
@@ -358,38 +352,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
   },
-  statsSection: {
-    flexDirection: 'row',
-    paddingHorizontal: 24,
-    paddingVertical: 32,
-    gap: 16,
-  },
-  statCard: {
-    flex: 1,
-    backgroundColor: Platform.OS === 'web' ? 'rgba(255, 255, 255, 0.8)' : 'white',
-    backdropFilter: Platform.OS === 'web' ? 'blur(20px)' : undefined,
-    borderRadius: 20,
-    padding: 24,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.1,
-    shadowRadius: 24,
-    elevation: 4,
-  },
-  statNumber: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: '#1a1a1a',
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 14,
-    color: '#666',
-    fontWeight: '500',
-  },
   actionSection: {
     flexDirection: 'row',
     paddingHorizontal: 24,
@@ -428,7 +390,9 @@ const styles = StyleSheet.create({
     color: 'white',
   },
   recipesSection: {
-    display: 'none',
+    flex: 1,
+    paddingHorizontal: 24,
+    paddingBottom: 32,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -567,7 +531,7 @@ const styles = StyleSheet.create({
     borderColor: '#f3f4f6',
     borderTopColor: '#6366f1',
     marginBottom: 16,
-    animation: Platform.OS === 'web' ? 'spin 1s linear infinite' : undefined,
+    ...(Platform.OS === 'web' ? { animation: 'spin 1s linear infinite' } : {}),
   },
   loadingText: {
     fontSize: 16,
@@ -601,6 +565,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 16,
     gridColumn: '1 / -1',
+  },
+  cardImage: {
+    width: '100%',
+    height: 180,
+    borderRadius: 16,
+    marginBottom: 16,
   },
 });
 

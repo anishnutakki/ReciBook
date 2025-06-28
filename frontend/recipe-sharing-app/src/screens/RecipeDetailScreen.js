@@ -7,6 +7,7 @@ import {
   Alert,
   ScrollView,
   Platform,
+  Image,
 } from 'react-native';
 import { doc, getDoc } from 'firebase/firestore';
 import { db, auth } from '../../firebase';
@@ -120,6 +121,9 @@ const RecipeDetailScreen = ({ route, navigation }) => {
             <Text style={styles.recipeTitle}>{recipe.title}</Text>
 
             {/* Recipe Meta Information */}
+            {recipe.imageUrl && (
+              <Image source={{ uri: recipe.imageUrl }} style={styles.detailImage} resizeMode="cover" />
+            )}
             <View style={styles.metaContainer}>
               {recipe.category && (
                 <View style={styles.metaItem}>
@@ -149,6 +153,14 @@ const RecipeDetailScreen = ({ route, navigation }) => {
                 <Text style={styles.metaLabel}>Created:</Text>
                 <Text style={styles.metaValue}>{formatDate(recipe.createdAt)}</Text>
               </View>
+              {recipe.authorName && (
+                <TouchableOpacity
+                  style={styles.metaItem}
+                  onPress={() => navigation.navigate('UserProfile', { userId: recipe.userId })}
+                >
+                  <Text style={[styles.metaValue, styles.authorLink]}>{recipe.authorName}</Text>
+                </TouchableOpacity>
+              )}
             </View>
 
             {/* Description */}
@@ -284,6 +296,9 @@ const RecipeDetailScreen = ({ route, navigation }) => {
           <Text style={styles.recipeTitle}>{recipe.title}</Text>
 
           {/* Recipe Meta Information */}
+          {recipe.imageUrl && (
+            <Image source={{ uri: recipe.imageUrl }} style={styles.detailImage} resizeMode="cover" />
+          )}
           <View style={styles.metaContainer}>
             {recipe.category && (
               <View style={styles.metaItem}>
@@ -313,6 +328,14 @@ const RecipeDetailScreen = ({ route, navigation }) => {
               <Text style={styles.metaLabel}>Created:</Text>
               <Text style={styles.metaValue}>{formatDate(recipe.createdAt)}</Text>
             </View>
+            {recipe.authorName && (
+              <TouchableOpacity
+                style={styles.metaItem}
+                onPress={() => navigation.navigate('UserProfile', { userId: recipe.userId })}
+              >
+                <Text style={[styles.metaValue, styles.authorLink]}>{recipe.authorName}</Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           {/* Description */}
@@ -653,12 +676,10 @@ const webStyles = {
       borderBottomWidth: 0,
     },
     ingredientBullet: {
-      width: 8,
-      height: 8,
-      borderRadius: 4,
-      background: Platform.OS === 'web' ? '#1e40af' : '#1e40af',
-      backgroundColor: '#1e40af',
-      marginRight: 16,
+      fontSize: 8,
+      color: '#6366f1',
+      marginRight: 8,
+      marginTop: 6,
     },
     ingredientText: {
       fontSize: 16,
@@ -899,6 +920,17 @@ const webStyles = {
       paddingVertical: 6,
       borderRadius: 12,
       alignSelf: 'flex-start',
+    },
+    authorLink: {
+      color: '#6366f1',
+      textDecorationLine: Platform.OS==='web' ? 'underline' : 'none',
+      fontWeight: '600',
+    },
+    detailImage: {
+      width: '100%',
+      height: 300,
+      borderRadius: 20,
+      marginVertical: 24,
     },
   });
   

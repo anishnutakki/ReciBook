@@ -14,6 +14,7 @@ import SearchScreen from './src/screens/SearchScreen';
 import RecipeDetailScreen from './src/screens/RecipeDetailScreen';
 import PublicRecipeScreen from './src/screens/PublicRecipeScreen';
 import AccountScreen from './src/screens/AccountScreen';
+import UserProfileScreen from './src/screens/UserProfileScreen';
 
 const Stack = createStackNavigator();
 
@@ -36,6 +37,7 @@ const linking = {
       Search: 'search',
       PublicRecipe: 'recipe/:recipeId', // This is the key route for your URLs
       Account: 'account',
+      UserProfile: 'user/:userId',
       
       // Unauthenticated screens
       Login: 'login',
@@ -140,6 +142,14 @@ export default function App() {
               component={AccountScreen}
               options={{ 
                 title: 'Account',
+                headerBackTitleVisible: false,
+              }}
+            />
+            <Stack.Screen 
+              name="UserProfile" 
+              component={UserProfileScreen}
+              options={{ 
+                title: 'Profile',
                 headerBackTitleVisible: false,
               }}
             />

@@ -136,7 +136,7 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   loginButtonText: {
-    color: 'white',
+    color: '#1a1a1a',
     fontSize: 18,
     fontWeight: '800',
     fontFamily: Platform.OS === 'web' ? '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' : undefined,
@@ -213,6 +213,7 @@ export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showForm, setShowForm] = useState(Platform.OS !== 'web');
 
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
@@ -230,14 +231,31 @@ export default function LoginScreen({ navigation }) {
     }
   };
 
+  if (Platform.OS === 'web' && !showForm) {
+    return (
+      <div style={webStyles.container}>
+        <div style={{ flex:1, display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'center', color:'#fff', textAlign:'center', padding:'40px' }}>
+          <h1 style={{ fontSize:52, marginBottom:24 }}>Welcome to <span style={{ color:'#fffa' }}>ReciBook</span></h1>
+          <p style={{ fontSize:22, maxWidth:600, marginBottom:40 }}>Discover, share and be inspired by delicious homemade recipes from people all around the world.</p>
+          <button onClick={()=>setShowForm(true)} style={{ padding:'16px 32px', fontSize:20, borderRadius:12, border:'none', background:'#fff', color:'#4f46e5', cursor:'pointer', fontWeight:700, boxShadow:'0 8px 20px rgba(0,0,0,0.15)' }}>Log in / Sign up</button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <KeyboardAvoidingView 
-      style={styles.container} 
+    <KeyboardAvoidingView
+      style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
+      {Platform.OS === 'web' && (
+        <TouchableOpacity style={{ position:'absolute', top:32, left:32 }} onPress={()=>setShowForm(false)}>
+          <Text style={{ fontSize:24, color:'#6366f1' }}>←</Text>
+        </TouchableOpacity>
+      )}
       <View style={styles.content}>
-        <Text style={styles.title}>Recipe Sharing</Text>
-        <Text style={styles.subtitle}>Welcome back!</Text>
+        <Text style={styles.title}>ReciBook</Text>
+        <Text style={styles.subtitle}>Log in to continue</Text>
 
         <View style={styles.formContainer}>
           <TextInput
@@ -260,20 +278,20 @@ export default function LoginScreen({ navigation }) {
           />
 
           <TouchableOpacity
-            style={[styles.button, isLoading && styles.buttonDisabled]}
+            style={[styles.loginButton, isLoading && styles.loginButtonDisabled]}
             onPress={handleLogin}
             disabled={isLoading}
           >
-            <Text style={styles.buttonText}>
+            <Text style={styles.loginButtonText}>
               {isLoading ? 'Logging in...' : 'Login'}
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.linkButton}
+            style={styles.registerLink}
             onPress={() => navigation.navigate('Register')}
           >
-            <Text style={styles.linkText}>
+            <Text style={styles.registerText}>
               Don't have an account? Sign up
             </Text>
           </TouchableOpacity>

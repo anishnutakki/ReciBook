@@ -12,6 +12,7 @@ import {
 import { doc, getDoc } from 'firebase/firestore';
 import { db, auth } from '../../firebase';
 import ShareModal from '../components/ShareModal';
+import VideoEmbed from '../components/VideoEmbed';
 
 const RecipeDetailScreen = ({ route, navigation }) => {
   const { recipeId } = route.params;
@@ -116,14 +117,12 @@ const RecipeDetailScreen = ({ route, navigation }) => {
           </TouchableOpacity>
         </View>
         <div style={webStyles.scrollableContainer}>
+          {recipe.videoUrl && <VideoEmbed url={recipe.videoUrl} style={{ marginBottom: 16 }} />}
           <View style={styles.content}>
             {/* Recipe Title */}
             <Text style={styles.recipeTitle}>{recipe.title}</Text>
 
             {/* Recipe Meta Information */}
-            {recipe.imageUrl && (
-              <Image source={{ uri: recipe.imageUrl }} style={styles.detailImage} resizeMode="cover" />
-            )}
             <View style={styles.metaContainer}>
               {recipe.category && (
                 <View style={styles.metaItem}>
@@ -291,14 +290,12 @@ const RecipeDetailScreen = ({ route, navigation }) => {
         </TouchableOpacity>
       </View>
       <div style={webStyles.scrollableContainer}>
+        {recipe.videoUrl && <VideoEmbed url={recipe.videoUrl} style={{ marginBottom: 16 }} />}
         <View style={styles.content}>
           {/* Recipe Title */}
           <Text style={styles.recipeTitle}>{recipe.title}</Text>
 
           {/* Recipe Meta Information */}
-          {recipe.imageUrl && (
-            <Image source={{ uri: recipe.imageUrl }} style={styles.detailImage} resizeMode="cover" />
-          )}
           <View style={styles.metaContainer}>
             {recipe.category && (
               <View style={styles.metaItem}>

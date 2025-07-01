@@ -16,7 +16,6 @@ import { auth } from '../../firebase';
 // For web compatibility, you might need to replace this with:
 // import { IoAddCircle, IoCloseCircle } from 'react-icons/io5';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { uploadRecipeImage } from '../services/storage';
 
 export default function AddRecipeScreen({ navigation }) {
   const [title, setTitle] = useState('');
@@ -25,6 +24,7 @@ export default function AddRecipeScreen({ navigation }) {
   const [ingredients, setIngredients] = useState([{ quantity: '', unit: '', name: '' }]);
   const [instructions, setInstructions] = useState(['']);
   const [isLoading, setIsLoading] = useState(false);
+  const [videoUrl, setVideoUrl] = useState('');
   const [imageUri, setImageUri] = useState(null);
   const [imageFile, setImageFile] = useState(null);
 
@@ -119,30 +119,13 @@ export default function AddRecipeScreen({ navigation }) {
 
     setIsLoading(true);
     try {
-      let downloadURL = null;
-      
-      // Fixed image upload logic
-      const uploadSource = Platform.OS === 'web' ? imageFile : imageUri;
-      if (uploadSource) {
-        console.log('Uploading image:', { 
-          platform: Platform.OS, 
-          hasFile: !!imageFile, 
-          hasUri: !!imageUri,
-          uploadSource: typeof uploadSource
-        });
-        
-        const { uploadRecipeImage } = await import('../services/storage');
-        downloadURL = await uploadRecipeImage(uploadSource);
-        console.log('Image uploaded successfully:', downloadURL);
-      }
-
       const recipeData = {
         title: title.trim(),
         description: description.trim(),
         ingredients: formattedIngredients,
         instructions: validInstructions,
         category: selectedCategory,
-        imageUrl: downloadURL,
+        videoUrl: videoUrl.trim(),
       };
 
       console.log('Creating recipe with data:', recipeData);
@@ -244,44 +227,15 @@ export default function AddRecipeScreen({ navigation }) {
               numberOfLines={3}
             />
 
-            {/* Image Picker */}
-            <Text style={styles.label}>Image</Text>
-            {imageUri && (
-              <Image 
-                source={{ uri: imageUri }} 
-                style={{ 
-                  width: '100%', 
-                  height: 200, 
-                  borderRadius: 12, 
-                  marginBottom: 12 
-                }} 
-                resizeMode="cover" 
-              />
-            )}
-            {imageUri && (
-              <TouchableOpacity
-                style={styles.removeImageButton}
-                onPress={() => {
-                  if (imageUri && imageUri.startsWith('blob:')) {
-                    URL.revokeObjectURL(imageUri);
-                  }
-                  setImageUri(null);
-                  setImageFile(null);
-                }}
-              >
-                <Text style={styles.removeImageText}>Remove Image</Text>
-              </TouchableOpacity>
-            )}
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handleImageSelect}
-              style={{ 
-                marginBottom: 24,
-                padding: 8,
-                borderRadius: 8,
-                border: '1px solid #ddd'
-              }}
+            {/* Video URL */}
+            <Text style={styles.label}>Video URL (optional)</Text>
+            <TextInput
+              style={styles.input}
+              value={videoUrl}
+              onChangeText={setVideoUrl}
+              placeholder="https://youtu.be/..."
+              placeholderTextColor="#999"
+              autoCapitalize="none"
             />
 
             {/* Category Selection */}
@@ -443,37 +397,16 @@ export default function AddRecipeScreen({ navigation }) {
             numberOfLines={3}
           />
 
-          {/* Image Picker */}
-          <Text style={styles.label}>Image</Text>
-          {imageUri && (
-            <Image 
-              source={{ uri: imageUri }} 
-              style={{ 
-                width: '100%', 
-                height: 200, 
-                borderRadius: 12, 
-                marginBottom: 12 
-              }} 
-              resizeMode="cover" 
-            />
-          )}
-          {imageUri && (
-            <TouchableOpacity
-              style={styles.removeImageButton}
-              onPress={() => {
-                setImageUri(null);
-                setImageFile(null);
-              }}
-            >
-              <Text style={styles.removeImageText}>Remove Image</Text>
-            </TouchableOpacity>
-          )}
-          <TouchableOpacity
-            style={styles.imageButton}
-            onPress={handleNativeImageSelect}
-          >
-            <Text style={{ color: '#6366f1', fontWeight: '600' }}>Select Image</Text>
-          </TouchableOpacity>
+          {/* Video URL */}
+          <Text style={styles.label}>Video URL (optional)</Text>
+          <TextInput
+            style={styles.input}
+            value={videoUrl}
+            onChangeText={setVideoUrl}
+            placeholder="https://youtu.be/..."
+            placeholderTextColor="#999"
+            autoCapitalize="none"
+          />
 
           {/* Category Selection */}
           <Text style={styles.label}>Category *</Text>
@@ -570,6 +503,17 @@ export default function AddRecipeScreen({ navigation }) {
             <Icon name="add-circle" size={24} color="#6366f1" />
             <Text style={styles.addButtonText}>Add Step</Text>
           </TouchableOpacity>
+
+          {/* Video URL (mobile) */}
+          <Text style={styles.label}>Video URL (optional)</Text>
+          <TextInput
+            style={styles.input}
+            value={videoUrl}
+            onChangeText={setVideoUrl}
+            placeholder="https://youtu.be/..."
+            placeholderTextColor="#999"
+            autoCapitalize="none"
+          />
 
           {/* Submit Button */}
           <TouchableOpacity

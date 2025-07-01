@@ -11,6 +11,7 @@ import {
 import { signOut } from 'firebase/auth';
 import { auth } from '../../firebase';
 import { getFeedRecipes } from '../services/recipes';
+import VideoEmbed from '../components/VideoEmbed';
 
 const HomeScreen = ({ navigation }) => {
   const [recipes, setRecipes] = useState([]);
@@ -89,8 +90,8 @@ const HomeScreen = ({ navigation }) => {
       onPress={() => handleRecipePress(recipe.id)}
       activeOpacity={0.95}
     >
-      {recipe.imageUrl && (
-        <Image source={{ uri: recipe.imageUrl }} style={styles.cardImage} resizeMode="cover" />
+      {recipe.videoUrl && (
+        <VideoEmbed url={recipe.videoUrl} style={{ marginBottom: 12 }} />
       )}
       <View style={styles.cardHeader}>
         <View style={styles.cardIconContainer}>
@@ -128,6 +129,15 @@ const HomeScreen = ({ navigation }) => {
           <Text style={styles.arrowText}>→</Text>
         </View>
       </View>
+      {/* Author Link */}
+      {recipe.authorName && (
+        <TouchableOpacity
+          onPress={() => navigation.navigate('UserProfile', { userId: recipe.userId })}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.authorName}>by {recipe.authorName}</Text>
+        </TouchableOpacity>
+      )}
     </TouchableOpacity>
   );
 
@@ -139,7 +149,7 @@ const HomeScreen = ({ navigation }) => {
           <View style={styles.header}>
             <View style={styles.headerContent}>
               <View style={styles.headerLeft}>
-                <Text style={styles.appTitle}>Recipe</Text>
+                <Text style={styles.appTitle}>ReciBook</Text>
                 <Text style={styles.welcomeText}>
                   Welcome back, {user?.displayName?.split(' ')[0] || 'Chef'}
                 </Text>
@@ -475,9 +485,9 @@ const styles = StyleSheet.create({
   },
   recipeDescription: {
     fontSize: 14,
+    fontWeight: '400',
     color: '#666',
-    lineHeight: 20,
-    marginBottom: 16,
+    marginBottom: 12,
   },
   ingredientsContainer: {
     marginBottom: 16,
@@ -571,6 +581,12 @@ const styles = StyleSheet.create({
     height: 180,
     borderRadius: 16,
     marginBottom: 16,
+  },
+  authorName: {
+    fontSize: 14,
+    color: '#6366f1',
+    fontWeight: '600',
+    marginBottom: 8,
   },
 });
 

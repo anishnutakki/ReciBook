@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../../firebase';
+import VideoEmbed from '../components/VideoEmbed';
 
 // Web-specific styles
 const webStyles = {
@@ -49,28 +50,31 @@ const webStyles = {
 
 // React Native styles
 const styles = StyleSheet.create({
-  header: {
-    background: Platform.OS === 'web' ? 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)' : '#6366f1',
-    paddingVertical: 24,
-    paddingHorizontal: 28,
+  publicHeader: {
+    ...(Platform.OS === 'web'
+      ? {
+          background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+        }
+      : { backgroundColor: '#6366f1' }),
+    paddingVertical: 16,
+    paddingHorizontal: 24,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
-    shadowRadius: 16,
-    elevation: 8,
-    position: 'relative',
-    overflow: 'hidden',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 6,
+    width: '100%',
+    boxSizing: Platform.OS === 'web' ? 'border-box' : undefined,
   },
-  headerTitle: {
-    fontSize: 22,
-    fontWeight: '800',
+  publicHeaderText: {
+    fontSize: 18,
+    fontWeight: '700',
     color: 'white',
-    flex: 1,
+    flexShrink: 1,
     fontFamily: Platform.OS === 'web' ? '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' : undefined,
-    textShadow: Platform.OS === 'web' ? '0 2px 4px rgba(0,0,0,0.1)' : undefined,
   },
   backButton: {
     background: Platform.OS === 'web' ? 'rgba(255, 255, 255, 0.2)' : 'rgba(255, 255, 255, 0.15)',
@@ -92,13 +96,13 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontFamily: Platform.OS === 'web' ? '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' : undefined,
   },
-  joinButton: {
-    background: Platform.OS === 'web' ? 'rgba(255, 255, 255, 0.2)' : 'rgba(255, 255, 255, 0.15)',
+  signUpButton: {
+    background: Platform.OS === 'web' ? 'rgba(255, 255, 255, 0.25)' : 'rgba(255,255,255,0.2)',
     paddingHorizontal: 20,
-    paddingVertical: 10,
+    paddingVertical: 8,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: Platform.OS === 'web' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255, 255, 255, 0.3)',
+    borderColor: 'rgba(255,255,255,0.4)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
@@ -107,8 +111,8 @@ const styles = StyleSheet.create({
     backdropFilter: Platform.OS === 'web' ? 'blur(10px)' : undefined,
     marginLeft: 12,
   },
-  joinButtonText: {
-    color: 'white',
+  signUpButtonText: {
+    color: '#fff',
     fontWeight: '700',
     fontSize: 15,
     fontFamily: Platform.OS === 'web' ? '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' : undefined,
@@ -364,6 +368,21 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontFamily: Platform.OS === 'web' ? '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' : undefined,
   },
+  centered: {
+    width: '100%',
+    maxWidth: 900,
+    alignSelf: 'center',
+  },
+  sharedRibbon:{
+    textAlign:'center',
+    backgroundColor:'#8b5cf6',
+    color:'#fff',
+    paddingVertical:8,
+    borderRadius:12,
+    marginBottom:24,
+    fontWeight:'700',
+    fontSize:16,
+  },
 });
 
 const PublicRecipeScreen = ({ route, navigation }) => {
@@ -558,7 +577,11 @@ const PublicRecipeScreen = ({ route, navigation }) => {
           </TouchableOpacity>
         </View>
         <div style={webStyles.scrollableContainer}>
-          <View style={styles.content}>
+          <View style={[styles.content, styles.centered]}>
+            <Text style={styles.sharedRibbon}>Shared via ReciBook</Text>
+            {recipe.videoUrl && (
+              <VideoEmbed url={recipe.videoUrl} style={{ marginBottom: 24 }} />
+            )}
             {/* Recipe Title */}
             <Text style={styles.recipeTitle}>{recipe.title}</Text>
 
@@ -741,7 +764,11 @@ const PublicRecipeScreen = ({ route, navigation }) => {
 
       {/* Scrollable Content */}
       <div style={webStyles.scrollableContainer}>
-        <View style={styles.content}>
+        <View style={[styles.content, styles.centered]}>
+          <Text style={styles.sharedRibbon}>Shared via ReciBook</Text>
+          {recipe.videoUrl && (
+            <VideoEmbed url={recipe.videoUrl} style={{ marginBottom: 24 }} />
+          )}
           {/* Recipe Title */}
           <Text style={styles.recipeTitle}>{recipe.title}</Text>
 
